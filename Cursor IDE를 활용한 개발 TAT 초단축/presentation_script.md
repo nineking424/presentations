@@ -13,6 +13,7 @@
     - 최근 연구결과
         - *COT* (Chain of Thought)
         - *MOE* (Mixture of Expert)
+        - BitNet b1.58 2B4T
 - **Home lab**
     - **Compute**
         - 2 mini server (4C/8G*2)
