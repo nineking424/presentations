@@ -22,7 +22,7 @@
     - **Virtualization**: proxmox
     - **Infrastructure**: VM + Container (K8s)
     - **Self hosted service**: npm + vpn
-    - **Development**
+    - **Console**
         - 1 mac mini
         - 1 mac book air
 
