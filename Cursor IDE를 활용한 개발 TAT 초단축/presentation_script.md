@@ -1,4 +1,4 @@
-![스크린샷 2025-05-14 오전 1 39 25](https://github.com/user-attachments/assets/89ecb3a7-5291-41a1-b55f-cc0a5cbe0010)# Cursor IDE를 활용한 개발 TAT 초단축
+# Cursor IDE를 활용한 개발 TAT 초단축
 
 ---
 
