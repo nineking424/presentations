@@ -29,6 +29,7 @@
 ### 1.2 바이브 코딩이란
 - "해줘"로 개발하는 시대 (like 딸깍)
 
+
 ### 1.3 Claude Sonnet 3.7 모델
 - AI 모델의 성능적 진보 → **아~주 쓸만하다!**
 - manus 사례: [까보니, 클로드](https://www.reddit.com/r/LocalLLaMA/comments/1j7n2s5/manus_turns_out_to_be_just_claude_sonnet_29_other/)
@@ -36,7 +37,8 @@
 ### 1.4 Benchmarks
 - **SOTA (State of the Arts) Models**
 - Claude 3.7 Sonnet offers state-of-the-art performance across a variety of coding, vision, and reasoning tasks.
-- ![Claude 3.7 Sonnet](https://assets-global.website-files.com/63e4c7b7c6b7b2b2b2b2b2b2/65e5e5e5e5e5e5e5e5e5e5e5_claude-sonnet.png)
+- ![model card](https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F654cf6680d32858dfba9af644f8c4a5b04425af1-2600x2360.png&w=3840&q=75)
+- [Claude 3.7 Sonnet and Claude Code](https://www.anthropic.com/news/claude-3-7-sonnet)
 
 ### 1.5 AI를 활용한 개발을 하며 느낀점
 - 코딩이 취미지만, 코딩은 귀찮아
@@ -194,3 +196,5 @@
 - Groq
 - [위키독스: 파이썬으로 배우는 알고리즘 트레이딩](https://wikidocs.net/book/14473)
 - [인터뷰 코더](https://maily.so/thesync/posts/d5ryll34o1w)
+
+![스크린샷 2025-05-14 오전 1 28 49](https://github.com/user-attachments/assets/76e1f6e3-98e8-44bc-9274-866d33a782cc)
