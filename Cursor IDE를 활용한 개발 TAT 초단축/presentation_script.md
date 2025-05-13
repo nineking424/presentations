@@ -198,3 +198,4 @@
 - [인터뷰 코더](https://maily.so/thesync/posts/d5ryll34o1w)
 
 ![스크린샷 2025-05-14 오전 1 40 09](https://github.com/user-attachments/assets/c9311154-2391-467f-bea2-58a4fe17b6e3)
+![스크린샷 2025-05-14 오전 1 46 32](https://github.com/user-attachments/assets/ddae8f2e-2953-4e75-a93c-6c2fffb0fc75)
