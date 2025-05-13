@@ -197,5 +197,4 @@
 - [위키독스: 파이썬으로 배우는 알고리즘 트레이딩](https://wikidocs.net/book/14473)
 - [인터뷰 코더](https://maily.so/thesync/posts/d5ryll34o1w)
 
-![Uploading 스크린샷 2025-05-14 오전 1.39.25.png…]()
-
+![스크린샷 2025-05-14 오전 1 40 09](https://github.com/user-attachments/assets/c9311154-2391-467f-bea2-58a4fe17b6e3)
