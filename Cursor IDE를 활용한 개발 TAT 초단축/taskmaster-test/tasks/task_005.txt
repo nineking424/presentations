@@ -1,0 +1,165 @@
+# Task ID: 5
+# Title: Implement CLI Interface
+# Status: pending
+# Dependencies: 2, 3, 4
+# Priority: high
+# Description: Create a command-line interface for the tool with basic commands for analysis and document generation
+# Details:
+1. Create a CLI module using argparse:
+```python
+# nkwiki/cli/main.py
+import argparse
+import os
+import sys
+from typing import List, Optional
+
+from nkwiki.analyzer.python_analyzer import PythonAnalyzer
+from nkwiki.analyzer.project_analyzer import ProjectAnalyzer
+from nkwiki.generator.markdown_generator import MarkdownGenerator
+
+def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='nkwiki: Automatic codebase documentation tool'
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+    
+    # Analyze command
+    analyze_parser = subparsers.add_parser('analyze', help='Analyze code without generating docs')
+    analyze_parser.add_argument('path', help='Path to the code directory or file')
+    analyze_parser.add_argument('-o', '--output', help='Output JSON file for analysis results')
+    
+    # Generate command
+    generate_parser = subparsers.add_parser('generate', help='Generate documentation')
+    generate_parser.add_argument('path', help='Path to the code directory or file')
+    generate_parser.add_argument('-o', '--output', default='./docs', help='Output directory for documentation')
+    generate_parser.add_argument('-f', '--format', default='markdown', choices=['markdown'], 
+                                help='Documentation format (only markdown supported for now)')
+    
+    # Version command
+    version_parser = subparsers.add_parser('version', help='Show version information')
+    
+    return parser.parse_args(args)
+
+def main(args: Optional[List[str]] = None) -> int:
+    """Main entry point for the CLI"""
+    parsed_args = parse_args(args)
+    
+    if parsed_args.command == 'version':
+        from nkwiki import __version__
+        print(f'nkwiki version {__version__}')
+        return 0
+    
+    if parsed_args.command == 'analyze':
+        return analyze_command(parsed_args)
+    
+    if parsed_args.command == 'generate':
+        return generate_command(parsed_args)
+    
+    # No command specified, show help
+    parse_args(['--help'])
+    return 1
+
+def analyze_command(args: argparse.Namespace) -> int:
+    """Execute the analyze command"""
+    path = os.path.abspath(args.path)
+    
+    if not os.path.exists(path):
+        print(f"Error: Path '{path}' does not exist", file=sys.stderr)
+        return 1
+    
+    print(f"Analyzing code at '{path}'...")
+    
+    # Analyze project structure
+    project_analyzer = ProjectAnalyzer(path)
+    project_data = project_analyzer.analyze_structure()
+    
+    # Analyze Python code
+    python_analyzer = PythonAnalyzer(path)
+    code_data = python_analyzer.analyze_directory()
+    
+    analysis_data = {
+        'project': project_data,
+        'code': code_data
+    }
+    
+    if args.output:
+        import json
+        with open(args.output, 'w', encoding='utf-8') as f:
+            json.dump(analysis_data, f, indent=2)
+        print(f"Analysis results saved to '{args.output}'")
+    else:
+        import json
+        print(json.dumps(analysis_data, indent=2))
+    
+    return 0
+
+def generate_command(args: argparse.Namespace) -> int:
+    """Execute the generate command"""
+    path = os.path.abspath(args.path)
+    output_dir = os.path.abspath(args.output)
+    
+    if not os.path.exists(path):
+        print(f"Error: Path '{path}' does not exist", file=sys.stderr)
+        return 1
+    
+    print(f"Analyzing code at '{path}'...")
+    
+    # Analyze project structure
+    project_analyzer = ProjectAnalyzer(path)
+    project_data = project_analyzer.analyze_structure()
+    
+    # Analyze Python code
+    python_analyzer = PythonAnalyzer(path)
+    code_data = python_analyzer.analyze_directory()
+    
+    analysis_data = {
+        'project': project_data,
+        'code': code_data
+    }
+    
+    print(f"Generating documentation in '{output_dir}'...")
+    
+    # Generate documentation
+    if args.format == 'markdown':
+        generator = MarkdownGenerator(analysis_data, output_dir)
+        generator.generate_documentation()
+    
+    print(f"Documentation generated successfully in '{output_dir}'")
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
+```
+
+2. Create an entry point in setup.py:
+```python
+setup(
+    # ... other setup parameters ...
+    entry_points={
+        'console_scripts': [
+            'nkwiki=nkwiki.cli.main:main',
+        ],
+    },
+)
+```
+
+3. Implement version handling in __init__.py:
+```python
+# nkwiki/__init__.py
+__version__ = '0.1.0'
+```
+
+4. Add error handling and logging throughout the CLI interface
+
+# Test Strategy:
+1. Test each CLI command with various arguments
+2. Verify correct handling of:
+   - Valid and invalid paths
+   - Different output formats
+   - Missing arguments
+3. Test the analyze command with sample projects
+4. Test the generate command with sample projects
+5. Verify that the CLI returns appropriate exit codes
+6. Test help and version commands

@@ -1,0 +1,368 @@
+# Task ID: 10
+# Title: Implement Comprehensive Testing Suite
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9
+# Priority: high
+# Description: Create a comprehensive testing suite to validate all components of the nkwiki tool
+# Details:
+1. Add pytest, pytest-cov, and pytest-mock to requirements.txt
+2. Create test directory structure:
+```
+tests/
+  ├── __init__.py
+  ├── conftest.py
+  ├── test_analyzer/
+  │   ├── __init__.py
+  │   ├── test_python_analyzer.py
+  │   ├── test_project_analyzer.py
+  │   ├── test_example_extractor.py
+  │   └── test_git_analyzer.py
+  ├── test_generator/
+  │   ├── __init__.py
+  │   ├── test_markdown_generator.py
+  │   ├── test_html_generator.py
+  │   └── test_diagram_generator.py
+  ├── test_cli/
+  │   ├── __init__.py
+  │   └── test_main.py
+  └── fixtures/
+      ├── sample_project/
+      │   ├── __init__.py
+      │   ├── module1.py
+      │   └── module2.py
+      └── sample_docstrings.py
+```
+
+3. Create conftest.py with common fixtures:
+```python
+# tests/conftest.py
+import os
+import tempfile
+import shutil
+import pytest
+
+@pytest.fixture
+def temp_dir():
+    """Create a temporary directory for test outputs"""
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+    shutil.rmtree(temp_dir)
+
+@pytest.fixture
+def sample_project_path():
+    """Path to the sample project in fixtures"""
+    return os.path.join(os.path.dirname(__file__), 'fixtures', 'sample_project')
+
+@pytest.fixture
+def sample_analysis_data():
+    """Sample analysis data for testing generators"""
+    return {
+        'project': {
+            'hierarchy': {
+                'name': 'sample_project',
+                'type': 'dir',
+                'children': [
+                    {'name': '__init__.py', 'type': 'file', 'path': '__init__.py'},
+                    {'name': 'module1.py', 'type': 'file', 'path': 'module1.py'},
+                    {'name': 'module2.py', 'type': 'file', 'path': 'module2.py'}
+                ]
+            },
+            'directories': [],
+            'config_files': []
+        },
+        'code': {
+            'module1.py': {
+                'docstring': 'Module 1 docstring',
+                'classes': [
+                    {
+                        'name': 'Class1',
+                        'docstring': 'Class1 docstring',
+                        'methods': [
+                            {
+                                'name': 'method1',
+                                'docstring': 'Method1 docstring',
+                                'signature': 'def method1(self, arg1: str) -> None:'
+                            }
+                        ]
+                    }
+                ],
+                'functions': [
+                    {
+                        'name': 'function1',
+                        'docstring': 'Function1 docstring',
+                        'signature': 'def function1(arg1: int, arg2: str = "default") -> bool:',
+                        'examples': [
+                            {
+                                'type': 'code_block',
+                                'code': 'result = function1(42, "test")',
+                                'output': None
+                            }
+                        ]
+                    }
+                ],
+                'imports': []
+            },
+            'module2.py': {
+                'docstring': 'Module 2 docstring',
+                'classes': [],
+                'functions': [
+                    {
+                        'name': 'function2',
+                        'docstring': 'Function2 docstring',
+                        'signature': 'def function2() -> None:'
+                    }
+                ],
+                'imports': [
+                    {'name': 'module1', 'alias': None}
+                ]
+            }
+        }
+    }
+```
+
+4. Create sample test files for analyzers:
+```python
+# tests/test_analyzer/test_python_analyzer.py
+import os
+import ast
+import pytest
+from nkwiki.analyzer.python_analyzer import PythonAnalyzer
+
+def test_analyze_file(sample_project_path):
+    """Test analyzing a single Python file"""
+    analyzer = PythonAnalyzer(sample_project_path)
+    file_path = os.path.join(sample_project_path, 'module1.py')
+    
+    result = analyzer.analyze_file(file_path)
+    
+    assert 'docstring' in result
+    assert 'classes' in result
+    assert 'functions' in result
+    assert 'imports' in result
+
+def test_analyze_directory(sample_project_path):
+    """Test analyzing a directory of Python files"""
+    analyzer = PythonAnalyzer(sample_project_path)
+    
+    result = analyzer.analyze_directory()
+    
+    assert 'module1.py' in result
+    assert 'module2.py' in result
+    assert '__init__.py' in result
+
+def test_extract_classes():
+    """Test extracting classes from AST"""
+    code = """
+    class TestClass:
+        """Test class docstring"""
+        def __init__(self, arg1):
+            self.arg1 = arg1
+            
+        def test_method(self):
+            """Test method docstring"""
+            return self.arg1
+    """
+    
+    tree = ast.parse(code)
+    analyzer = PythonAnalyzer('')
+    
+    classes = analyzer._extract_classes(tree)
+    
+    assert len(classes) == 1
+    assert classes[0]['name'] == 'TestClass'
+    assert classes[0]['docstring'] == 'Test class docstring'
+    assert len(classes[0]['methods']) == 2  # __init__ and test_method
+
+def test_extract_functions():
+    """Test extracting functions from AST"""
+    code = """
+    def test_function(arg1, arg2=None):
+        """Test function docstring"""
+        return arg1 + arg2
+    """
+    
+    tree = ast.parse(code)
+    analyzer = PythonAnalyzer('')
+    
+    functions = analyzer._extract_functions(tree)
+    
+    assert len(functions) == 1
+    assert functions[0]['name'] == 'test_function'
+    assert functions[0]['docstring'] == 'Test function docstring'
+    assert 'arg1' in functions[0]['signature']
+    assert 'arg2=None' in functions[0]['signature']
+```
+
+5. Create sample test files for generators:
+```python
+# tests/test_generator/test_markdown_generator.py
+import os
+import pytest
+from nkwiki.generator.markdown_generator import MarkdownGenerator
+
+def test_generate_documentation(temp_dir, sample_analysis_data):
+    """Test generating markdown documentation"""
+    generator = MarkdownGenerator(sample_analysis_data, temp_dir)
+    generator.generate_documentation()
+    
+    # Check that expected files were created
+    assert os.path.exists(os.path.join(temp_dir, 'index.md'))
+    assert os.path.exists(os.path.join(temp_dir, 'overview.md'))
+    assert os.path.exists(os.path.join(temp_dir, 'modules'))
+    assert os.path.exists(os.path.join(temp_dir, 'modules', 'module1.md'))
+    assert os.path.exists(os.path.join(temp_dir, 'modules', 'module2.md'))
+
+def test_generate_overview(temp_dir, sample_analysis_data):
+    """Test generating overview documentation"""
+    generator = MarkdownGenerator(sample_analysis_data, temp_dir)
+    generator._generate_overview()
+    
+    overview_path = os.path.join(temp_dir, 'overview.md')
+    assert os.path.exists(overview_path)
+    
+    with open(overview_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        assert '# Project Overview' in content
+        assert '## Project Structure' in content
+
+def test_generate_modules_docs(temp_dir, sample_analysis_data):
+    """Test generating module documentation"""
+    generator = MarkdownGenerator(sample_analysis_data, temp_dir)
+    os.makedirs(os.path.join(temp_dir, 'modules'), exist_ok=True)
+    generator._generate_modules_docs()
+    
+    module1_path = os.path.join(temp_dir, 'modules', 'module1.md')
+    assert os.path.exists(module1_path)
+    
+    with open(module1_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        assert '# Module: module1' in content
+        assert 'Module 1 docstring' in content
+        assert '## Classes' in content
+        assert '### Class1' in content
+        assert '## Functions' in content
+        assert '### `function1`' in content
+```
+
+6. Create sample test files for CLI:
+```python
+# tests/test_cli/test_main.py
+import os
+import pytest
+from unittest.mock import patch
+from nkwiki.cli.main import main, parse_args
+
+def test_parse_args():
+    """Test argument parsing"""
+    args = parse_args(['analyze', '/path/to/code'])
+    assert args.command == 'analyze'
+    assert args.path == '/path/to/code'
+    assert args.output is None
+    
+    args = parse_args(['generate', '/path/to/code', '-o', '/output/dir', '-f', 'html'])
+    assert args.command == 'generate'
+    assert args.path == '/path/to/code'
+    assert args.output == '/output/dir'
+    assert args.format == 'html'
+    
+    args = parse_args(['version'])
+    assert args.command == 'version'
+
+@patch('nkwiki.cli.main.analyze_command')
+def test_main_analyze(mock_analyze):
+    """Test main function with analyze command"""
+    mock_analyze.return_value = 0
+    
+    result = main(['analyze', '/path/to/code'])
+    
+    assert result == 0
+    mock_analyze.assert_called_once()
+
+@patch('nkwiki.cli.main.generate_command')
+def test_main_generate(mock_generate):
+    """Test main function with generate command"""
+    mock_generate.return_value = 0
+    
+    result = main(['generate', '/path/to/code'])
+    
+    assert result == 0
+    mock_generate.assert_called_once()
+
+@patch('nkwiki.cli.main.PythonAnalyzer')
+@patch('nkwiki.cli.main.ProjectAnalyzer')
+def test_analyze_command(mock_project_analyzer, mock_python_analyzer, temp_dir):
+    """Test analyze command"""
+    from nkwiki.cli.main import analyze_command
+    import argparse
+    
+    # Setup mocks
+    mock_project_analyzer_instance = mock_project_analyzer.return_value
+    mock_project_analyzer_instance.analyze_structure.return_value = {'test': 'project'}
+    
+    mock_python_analyzer_instance = mock_python_analyzer.return_value
+    mock_python_analyzer_instance.analyze_directory.return_value = {'test': 'code'}
+    
+    # Create args
+    args = argparse.Namespace()
+    args.path = temp_dir
+    args.output = os.path.join(temp_dir, 'analysis.json')
+    args.git = False
+    
+    # Run command
+    result = analyze_command(args)
+    
+    # Verify
+    assert result == 0
+    mock_project_analyzer.assert_called_once_with(temp_dir)
+    mock_python_analyzer.assert_called_once_with(temp_dir)
+    assert os.path.exists(args.output)
+```
+
+7. Create a setup.cfg file for pytest configuration:
+```ini
+[tool:pytest]
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+testpaths = tests
+
+[coverage:run]
+source = nkwiki
+omit = tests/*
+```
+
+8. Add a Makefile for common test commands:
+```makefile
+.PHONY: test test-cov lint clean
+
+test:
+	pytest
+
+test-cov:
+	pytest --cov=nkwiki --cov-report=term --cov-report=html
+
+lint:
+	flake8 nkwiki tests
+
+clean:
+	rm -rf .coverage htmlcov .pytest_cache
+```
+
+# Test Strategy:
+1. Run unit tests for each component:
+   - Code analyzers (Python, Project, Git)
+   - Document generators (Markdown, HTML)
+   - Diagram generator
+   - CLI interface
+2. Run integration tests to verify end-to-end functionality:
+   - Analyze a sample project and generate documentation
+   - Test with different output formats
+   - Test with Git repositories
+3. Test with edge cases:
+   - Empty projects
+   - Projects with syntax errors
+   - Large projects
+   - Projects with unusual structures
+4. Measure code coverage and aim for at least 80% coverage
+5. Run tests on different platforms (Windows, macOS, Linux)
+6. Verify that generated documentation is valid and well-formatted

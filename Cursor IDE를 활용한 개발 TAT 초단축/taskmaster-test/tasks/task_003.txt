@@ -1,0 +1,91 @@
+# Task ID: 3
+# Title: Implement Project Structure Analyzer
+# Status: pending
+# Dependencies: 1
+# Priority: medium
+# Description: Create a component to analyze project directory structure and identify configuration files
+# Details:
+1. Create a project structure analyzer module:
+```python
+# nkwiki/analyzer/project_analyzer.py
+import os
+from typing import Dict, List, Any
+
+class ProjectAnalyzer:
+    def __init__(self, path: str):
+        self.path = path
+        self.config_patterns = {
+            'python': ['requirements.txt', 'setup.py', 'pyproject.toml', 'Pipfile'],
+            'node': ['package.json', 'package-lock.json', 'yarn.lock'],
+            'general': ['.gitignore', 'README.md', 'LICENSE', 'Dockerfile']
+        }
+    
+    def analyze_structure(self) -> Dict[str, Any]:
+        """Analyze the project directory structure"""
+        structure = {
+            'directories': [],
+            'config_files': [],
+            'hierarchy': self._build_hierarchy(self.path)
+        }
+        
+        # Collect directories
+        for root, dirs, _ in os.walk(self.path):
+            rel_path = os.path.relpath(root, self.path)
+            if rel_path != '.':
+                structure['directories'].append(rel_path)
+        
+        # Identify config files
+        structure['config_files'] = self._find_config_files()
+        
+        return structure
+    
+    def _build_hierarchy(self, path: str, rel_path: str = '') -> Dict[str, Any]:
+        """Build a hierarchical representation of the directory structure"""
+        result = {'name': os.path.basename(path) or path, 'type': 'dir', 'children': []}
+        
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            item_rel_path = os.path.join(rel_path, item)
+            
+            if os.path.isdir(item_path) and not item.startswith('.'):
+                result['children'].append(self._build_hierarchy(item_path, item_rel_path))
+            elif os.path.isfile(item_path):
+                result['children'].append({
+                    'name': item,
+                    'type': 'file',
+                    'path': item_rel_path
+                })
+        
+        return result
+    
+    def _find_config_files(self) -> List[Dict[str, str]]:
+        """Find configuration files in the project"""
+        config_files = []
+        
+        for root, _, files in os.walk(self.path):
+            for file in files:
+                for category, patterns in self.config_patterns.items():
+                    if file in patterns:
+                        file_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(file_path, self.path)
+                        config_files.append({
+                            'name': file,
+                            'path': rel_path,
+                            'category': category
+                        })
+        
+        return config_files
+```
+
+2. Add methods to detect project type based on configuration files
+3. Implement functions to extract metadata from common configuration files
+4. Add support for identifying test directories and source directories
+
+# Test Strategy:
+1. Create test projects with various directory structures
+2. Test with projects containing different configuration files (requirements.txt, package.json, etc.)
+3. Verify correct identification of:
+   - Project hierarchy
+   - Configuration files and their categories
+   - Project type detection
+4. Test with edge cases like empty directories, deeply nested structures, and projects with unusual layouts

@@ -1,0 +1,76 @@
+# Task ID: 2
+# Title: Implement Code Analysis Engine for Python
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Develop the core code analysis engine that can parse Python source code and extract class, function, and module structures
+# Details:
+1. Create analyzer module with the following components:
+```python
+# nkwiki/analyzer/python_analyzer.py
+import ast
+import os
+from typing import Dict, List, Any
+
+class PythonAnalyzer:
+    def __init__(self, path: str):
+        self.path = path
+        self.modules = {}
+    
+    def analyze_file(self, file_path: str) -> Dict[str, Any]:
+        """Analyze a single Python file and extract its structure"""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        tree = ast.parse(content)
+        module_info = {
+            'classes': self._extract_classes(tree),
+            'functions': self._extract_functions(tree),
+            'docstring': ast.get_docstring(tree),
+            'imports': self._extract_imports(tree)
+        }
+        return module_info
+    
+    def _extract_classes(self, tree: ast.AST) -> List[Dict[str, Any]]:
+        """Extract class definitions from AST"""
+        # Implementation details
+        pass
+    
+    def _extract_functions(self, tree: ast.AST) -> List[Dict[str, Any]]:
+        """Extract function definitions from AST"""
+        # Implementation details
+        pass
+    
+    def _extract_imports(self, tree: ast.AST) -> List[Dict[str, Any]]:
+        """Extract import statements from AST"""
+        # Implementation details
+        pass
+    
+    def analyze_directory(self, dir_path: str = None) -> Dict[str, Any]:
+        """Recursively analyze Python files in a directory"""
+        if dir_path is None:
+            dir_path = self.path
+        
+        result = {}
+        for root, _, files in os.walk(dir_path):
+            for file in files:
+                if file.endswith('.py'):
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, self.path)
+                    result[rel_path] = self.analyze_file(file_path)
+        
+        return result
+```
+
+2. Implement helper functions to extract docstrings, type hints, and other metadata
+3. Add support for detecting class inheritance and method overrides
+4. Implement function to identify module relationships and dependencies
+
+# Test Strategy:
+1. Create unit tests with sample Python files containing various structures (classes, functions, nested classes, etc.)
+2. Test with files containing different docstring formats (Google style, NumPy style, etc.)
+3. Verify correct extraction of:
+   - Class definitions and inheritance
+   - Function signatures and docstrings
+   - Module-level docstrings and imports
+4. Test with edge cases like empty files, files with syntax errors, and large files

@@ -1,0 +1,149 @@
+# Task ID: 4
+# Title: Implement Markdown Document Generator
+# Status: pending
+# Dependencies: 2, 3
+# Priority: high
+# Description: Create a component that generates Markdown documentation from the analyzed code structure
+# Details:
+1. Create a document generator module:
+```python
+# nkwiki/generator/markdown_generator.py
+import os
+from typing import Dict, List, Any
+
+class MarkdownGenerator:
+    def __init__(self, analysis_data: Dict[str, Any], output_dir: str):
+        self.analysis_data = analysis_data
+        self.output_dir = output_dir
+        
+    def generate_documentation(self) -> None:
+        """Generate markdown documentation from analysis data"""
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Generate project overview
+        self._generate_overview()
+        
+        # Generate module documentation
+        self._generate_modules_docs()
+        
+        # Generate index file
+        self._generate_index()
+    
+    def _generate_overview(self) -> None:
+        """Generate project overview documentation"""
+        overview_path = os.path.join(self.output_dir, 'overview.md')
+        
+        with open(overview_path, 'w', encoding='utf-8') as f:
+            f.write('# Project Overview\n\n')
+            
+            # Project structure section
+            f.write('## Project Structure\n\n')
+            f.write('```\n')
+            f.write(self._format_directory_tree(self.analysis_data['project']['hierarchy']))
+            f.write('```\n\n')
+            
+            # Configuration files section
+            f.write('## Configuration Files\n\n')
+            for config in self.analysis_data['project']['config_files']:
+                f.write(f'- **{config["name"]}**: {config["path"]}\n')
+    
+    def _generate_modules_docs(self) -> None:
+        """Generate documentation for each module"""
+        modules_dir = os.path.join(self.output_dir, 'modules')
+        os.makedirs(modules_dir, exist_ok=True)
+        
+        for module_path, module_data in self.analysis_data['code'].items():
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            file_path = os.path.join(modules_dir, f'{module_name}.md')
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(f'# Module: {module_name}\n\n')
+                
+                # Module docstring
+                if module_data.get('docstring'):
+                    f.write(f'{module_data["docstring"]}\n\n')
+                
+                # Classes
+                if module_data.get('classes'):
+                    f.write('## Classes\n\n')
+                    for class_info in module_data['classes']:
+                        self._write_class_doc(f, class_info)
+                
+                # Functions
+                if module_data.get('functions'):
+                    f.write('## Functions\n\n')
+                    for func_info in module_data['functions']:
+                        self._write_function_doc(f, func_info)
+    
+    def _write_class_doc(self, file, class_info: Dict[str, Any]) -> None:
+        """Write documentation for a class"""
+        file.write(f'### {class_info["name"]}\n\n')
+        
+        if class_info.get('docstring'):
+            file.write(f'{class_info["docstring"]}\n\n')
+        
+        if class_info.get('methods'):
+            file.write('#### Methods\n\n')
+            for method in class_info['methods']:
+                file.write(f'##### `{method["name"]}`\n\n')
+                if method.get('docstring'):
+                    file.write(f'{method["docstring"]}\n\n')
+                file.write(f'```python\n{method["signature"]}\n```\n\n')
+    
+    def _write_function_doc(self, file, func_info: Dict[str, Any]) -> None:
+        """Write documentation for a function"""
+        file.write(f'### `{func_info["name"]}`\n\n')
+        
+        if func_info.get('docstring'):
+            file.write(f'{func_info["docstring"]}\n\n')
+        
+        file.write(f'```python\n{func_info["signature"]}\n```\n\n')
+    
+    def _generate_index(self) -> None:
+        """Generate index file"""
+        index_path = os.path.join(self.output_dir, 'index.md')
+        
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write('# Documentation Index\n\n')
+            f.write('- [Project Overview](overview.md)\n')
+            f.write('- Modules:\n')
+            
+            for module_path in self.analysis_data['code'].keys():
+                module_name = os.path.splitext(os.path.basename(module_path))[0]
+                f.write(f'  - [{module_name}](modules/{module_name}.md)\n')
+    
+    def _format_directory_tree(self, node: Dict[str, Any], prefix: str = '') -> str:
+        """Format directory tree as a string"""
+        result = []
+        name = node['name']
+        
+        if prefix:
+            result.append(f"{prefix}└── {name}")
+        else:
+            result.append(name)
+        
+        prefix = prefix + "    "
+        
+        for i, child in enumerate(node.get('children', [])):
+            is_last = i == len(node.get('children', [])) - 1
+            if child['type'] == 'dir':
+                result.append(self._format_directory_tree(child, prefix))
+            else:
+                result.append(f"{prefix}└── {child['name']}")
+        
+        return '\n'.join(result)
+```
+
+2. Implement formatting helpers for different documentation elements
+3. Add support for syntax highlighting in code blocks
+4. Create templates for different documentation sections
+
+# Test Strategy:
+1. Test with sample analysis data from the code analyzer
+2. Verify correct generation of:
+   - Project overview documentation
+   - Module documentation with classes and functions
+   - Index file with proper links
+3. Check formatting of generated markdown for proper syntax
+4. Validate that code blocks have proper syntax highlighting
+5. Test with edge cases like modules with no docstrings, empty classes, etc.

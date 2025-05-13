@@ -1,0 +1,180 @@
+# Task ID: 7
+# Title: Implement Git Repository Support
+# Status: pending
+# Dependencies: 1, 2, 3
+# Priority: medium
+# Description: Add support for analyzing Git repositories by URL or local Git repository
+# Details:
+1. Add GitPython to requirements.txt
+2. Create a Git repository analyzer module:
+```python
+# nkwiki/analyzer/git_analyzer.py
+import os
+import tempfile
+import shutil
+from typing import Dict, Any, Optional
+import git
+
+class GitAnalyzer:
+    def __init__(self, repo_url: str, branch: str = 'main'):
+        self.repo_url = repo_url
+        self.branch = branch
+        self.temp_dir = None
+        self.repo = None
+    
+    def clone_repository(self) -> str:
+        """Clone the Git repository to a temporary directory"""
+        self.temp_dir = tempfile.mkdtemp(prefix='nkwiki_')
+        print(f"Cloning repository {self.repo_url} to {self.temp_dir}...")
+        
+        try:
+            self.repo = git.Repo.clone_from(self.repo_url, self.temp_dir)
+            
+            # Checkout specific branch if provided
+            if self.branch != 'main':
+                self.repo.git.checkout(self.branch)
+            
+            return self.temp_dir
+        except git.GitCommandError as e:
+            if self.temp_dir and os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+            raise RuntimeError(f"Failed to clone repository: {str(e)}")
+    
+    def get_repository_info(self) -> Dict[str, Any]:
+        """Get information about the Git repository"""
+        if not self.repo:
+            raise RuntimeError("Repository not cloned yet. Call clone_repository() first.")
+        
+        # Get basic repository information
+        info = {
+            'url': self.repo_url,
+            'branch': self.branch,
+            'last_commit': {
+                'hash': self.repo.head.commit.hexsha,
+                'author': f"{self.repo.head.commit.author.name} <{self.repo.head.commit.author.email}>",
+                'date': self.repo.head.commit.committed_datetime.isoformat(),
+                'message': self.repo.head.commit.message.strip()
+            },
+            'contributors': self._get_contributors(),
+            'tags': [tag.name for tag in self.repo.tags]
+        }
+        
+        return info
+    
+    def _get_contributors(self) -> list:
+        """Get list of contributors to the repository"""
+        contributors = {}
+        for commit in self.repo.iter_commits():
+            author = f"{commit.author.name} <{commit.author.email}>"
+            if author in contributors:
+                contributors[author]['commits'] += 1
+            else:
+                contributors[author] = {
+                    'name': commit.author.name,
+                    'email': commit.author.email,
+                    'commits': 1
+                }
+        
+        # Convert to list and sort by number of commits
+        contributors_list = list(contributors.values())
+        contributors_list.sort(key=lambda x: x['commits'], reverse=True)
+        
+        return contributors_list
+    
+    def cleanup(self) -> None:
+        """Clean up temporary directory"""
+        if self.temp_dir and os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+            self.temp_dir = None
+            self.repo = None
+    
+    def __enter__(self):
+        self.clone_repository()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cleanup()
+```
+
+3. Update the CLI to support Git repository URLs:
+```python
+# Update in cli/main.py
+
+# In parse_args function
+analyze_parser.add_argument('--git', action='store_true', help='Treat path as a Git repository URL')
+generate_parser.add_argument('--git', action='store_true', help='Treat path as a Git repository URL')
+generate_parser.add_argument('--branch', default='main', help='Git branch to analyze (only with --git)')
+
+# In analyze_command and generate_command functions
+def analyze_command(args: argparse.Namespace) -> int:
+    """Execute the analyze command"""
+    path = args.path
+    
+    if args.git:
+        # Handle Git repository
+        from nkwiki.analyzer.git_analyzer import GitAnalyzer
+        try:
+            with GitAnalyzer(path, args.branch if hasattr(args, 'branch') else 'main') as git_analyzer:
+                path = git_analyzer.temp_dir
+                git_info = git_analyzer.get_repository_info()
+                
+                # Continue with analysis using the cloned repository path
+                # ... existing analysis code ...
+                
+                # Add Git info to analysis data
+                analysis_data['git'] = git_info
+        except Exception as e:
+            print(f"Error analyzing Git repository: {str(e)}", file=sys.stderr)
+            return 1
+    else:
+        # Handle local path (existing code)
+        path = os.path.abspath(path)
+        if not os.path.exists(path):
+            print(f"Error: Path '{path}' does not exist", file=sys.stderr)
+            return 1
+        
+        # ... existing analysis code ...
+```
+
+4. Update the markdown generator to include Git repository information:
+```python
+# In MarkdownGenerator._generate_overview method
+def _generate_overview(self) -> None:
+    """Generate project overview documentation"""
+    overview_path = os.path.join(self.output_dir, 'overview.md')
+    
+    with open(overview_path, 'w', encoding='utf-8') as f:
+        f.write('# Project Overview\n\n')
+        
+        # Git repository information if available
+        if 'git' in self.analysis_data:
+            git_info = self.analysis_data['git']
+            f.write('## Repository Information\n\n')
+            f.write(f'- **Repository URL**: {git_info["url"]}\n')
+            f.write(f'- **Branch**: {git_info["branch"]}\n')
+            f.write(f'- **Last Commit**: {git_info["last_commit"]["hash"]}\n')
+            f.write(f'  - **Author**: {git_info["last_commit"]["author"]}\n')
+            f.write(f'  - **Date**: {git_info["last_commit"]["date"]}\n')
+            f.write(f'  - **Message**: {git_info["last_commit"]["message"]}\n\n')
+            
+            f.write('### Top Contributors\n\n')
+            for contributor in git_info['contributors'][:5]:  # Show top 5 contributors
+                f.write(f'- {contributor["name"]} ({contributor["commits"]} commits)\n')
+            f.write('\n')
+        
+        # ... rest of the overview generation code ...
+```
+
+# Test Strategy:
+1. Test with various Git repository URLs:
+   - Public GitHub repositories
+   - Private repositories (with authentication)
+   - Repositories with different structures
+2. Test branch selection functionality
+3. Verify correct extraction of Git metadata:
+   - Repository URL and branch
+   - Commit information
+   - Contributors list
+4. Test error handling for invalid repositories or network issues
+5. Verify cleanup of temporary directories
+6. Test integration with the existing analysis and documentation generation flow

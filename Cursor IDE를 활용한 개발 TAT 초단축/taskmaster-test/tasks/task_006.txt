@@ -1,0 +1,155 @@
+# Task ID: 6
+# Title: Implement Code Example Extraction
+# Status: pending
+# Dependencies: 2, 4
+# Priority: medium
+# Description: Add functionality to extract code examples from docstrings and generate sample usage documentation
+# Details:
+1. Create a code example extractor module:
+```python
+# nkwiki/analyzer/example_extractor.py
+import re
+from typing import List, Dict, Any, Optional
+
+class ExampleExtractor:
+    def __init__(self):
+        # Regex patterns for different docstring formats
+        self.patterns = {
+            'python_doctest': r'\s*>>>\s+(.+)(?:\s+\.\.\.\s+(.+))*(?:\s+(.+))?',
+            'code_block': r'```(?:python)?\n([\s\S]+?)\n```',
+            'example_section': r'(?:Examples?|Usage):\s*\n([\s\S]+?)(?:\n\n|$)'
+        }
+    
+    def extract_examples(self, docstring: Optional[str]) -> List[Dict[str, Any]]:
+        """Extract code examples from a docstring"""
+        if not docstring:
+            return []
+        
+        examples = []
+        
+        # Extract doctests
+        doctest_examples = self._extract_doctests(docstring)
+        if doctest_examples:
+            examples.extend(doctest_examples)
+        
+        # Extract code blocks
+        code_block_examples = self._extract_code_blocks(docstring)
+        if code_block_examples:
+            examples.extend(code_block_examples)
+        
+        # Extract from example sections
+        example_sections = self._extract_example_sections(docstring)
+        if example_sections:
+            examples.extend(example_sections)
+        
+        return examples
+    
+    def _extract_doctests(self, docstring: str) -> List[Dict[str, Any]]:
+        """Extract Python doctests from a docstring"""
+        examples = []
+        pattern = self.patterns['python_doctest']
+        
+        matches = re.finditer(pattern, docstring, re.MULTILINE)
+        for match in matches:
+            code = match.group(1)
+            examples.append({
+                'type': 'doctest',
+                'code': code,
+                'output': match.group(3) if match.group(3) else None
+            })
+        
+        return examples
+    
+    def _extract_code_blocks(self, docstring: str) -> List[Dict[str, Any]]:
+        """Extract code blocks from a docstring"""
+        examples = []
+        pattern = self.patterns['code_block']
+        
+        matches = re.finditer(pattern, docstring, re.MULTILINE)
+        for match in matches:
+            code = match.group(1).strip()
+            examples.append({
+                'type': 'code_block',
+                'code': code,
+                'output': None
+            })
+        
+        return examples
+    
+    def _extract_example_sections(self, docstring: str) -> List[Dict[str, Any]]:
+        """Extract examples from dedicated example sections"""
+        examples = []
+        pattern = self.patterns['example_section']
+        
+        matches = re.finditer(pattern, docstring, re.MULTILINE)
+        for match in matches:
+            content = match.group(1).strip()
+            examples.append({
+                'type': 'example_section',
+                'code': content,
+                'output': None
+            })
+        
+        return examples
+```
+
+2. Integrate the example extractor with the Python analyzer:
+```python
+# In PythonAnalyzer class
+from nkwiki.analyzer.example_extractor import ExampleExtractor
+
+def __init__(self, path: str):
+    self.path = path
+    self.modules = {}
+    self.example_extractor = ExampleExtractor()
+
+def _extract_functions(self, tree: ast.AST) -> List[Dict[str, Any]]:
+    functions = []
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef):
+            docstring = ast.get_docstring(node)
+            examples = self.example_extractor.extract_examples(docstring)
+            
+            functions.append({
+                'name': node.name,
+                'docstring': docstring,
+                'signature': self._get_function_signature(node),
+                'examples': examples
+            })
+    return functions
+```
+
+3. Update the markdown generator to include examples in the documentation:
+```python
+# In MarkdownGenerator._write_function_doc method
+def _write_function_doc(self, file, func_info: Dict[str, Any]) -> None:
+    """Write documentation for a function"""
+    file.write(f'### `{func_info["name"]}`\n\n')
+    
+    if func_info.get('docstring'):
+        file.write(f'{func_info["docstring"]}\n\n')
+    
+    file.write(f'```python\n{func_info["signature"]}\n```\n\n')
+    
+    # Add examples section if available
+    if func_info.get('examples'):
+        file.write('#### Examples\n\n')
+        for example in func_info['examples']:
+            file.write('```python\n')
+            file.write(example['code'])
+            file.write('\n```\n\n')
+            if example.get('output'):
+                file.write('Output:\n```\n')
+                file.write(example['output'])
+                file.write('\n```\n\n')
+```
+
+# Test Strategy:
+1. Create test cases with docstrings containing various example formats:
+   - Python doctests
+   - Markdown code blocks
+   - Example sections
+2. Verify correct extraction of examples from each format
+3. Test with edge cases like malformed examples, nested code blocks, etc.
+4. Verify that extracted examples are correctly included in generated documentation
+5. Test with real-world docstrings from popular Python libraries

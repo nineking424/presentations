@@ -1,0 +1,280 @@
+# Task ID: 9
+# Title: Implement Basic Diagram Generation
+# Status: pending
+# Dependencies: 3, 4, 8
+# Priority: low
+# Description: Add functionality to generate basic diagrams for project structure and module relationships
+# Details:
+1. Add graphviz to requirements.txt
+2. Create a diagram generator module:
+```python
+# nkwiki/generator/diagram_generator.py
+import os
+from typing import Dict, Any, List
+import graphviz
+
+class DiagramGenerator:
+    def __init__(self, analysis_data: Dict[str, Any], output_dir: str):
+        self.analysis_data = analysis_data
+        self.output_dir = output_dir
+        self.diagrams_dir = os.path.join(output_dir, 'diagrams')
+        os.makedirs(self.diagrams_dir, exist_ok=True)
+    
+    def generate_all_diagrams(self) -> Dict[str, str]:
+        """Generate all diagrams and return paths"""
+        diagram_paths = {}
+        
+        # Generate project structure diagram
+        structure_path = self.generate_structure_diagram()
+        if structure_path:
+            diagram_paths['structure'] = structure_path
+        
+        # Generate module relationships diagram
+        modules_path = self.generate_module_relationships()
+        if modules_path:
+            diagram_paths['modules'] = modules_path
+        
+        # Generate class diagrams for each module with classes
+        class_diagrams = self.generate_class_diagrams()
+        if class_diagrams:
+            diagram_paths['classes'] = class_diagrams
+        
+        return diagram_paths
+    
+    def generate_structure_diagram(self) -> str:
+        """Generate project structure diagram"""
+        dot = graphviz.Digraph('project_structure', comment='Project Structure')
+        dot.attr('node', shape='box', style='filled', fillcolor='lightblue')
+        
+        # Add root node
+        root_name = os.path.basename(self.analysis_data['project']['hierarchy']['name'])
+        dot.node('root', root_name)
+        
+        # Add directory nodes and edges
+        self._add_directory_nodes(dot, self.analysis_data['project']['hierarchy'], 'root', [])
+        
+        # Save diagram
+        output_path = os.path.join(self.diagrams_dir, 'project_structure')
+        dot.render(output_path, format='png', cleanup=True)
+        
+        return os.path.relpath(f'{output_path}.png', self.output_dir)
+    
+    def _add_directory_nodes(self, dot, node, parent_id, added_nodes, prefix=''):
+        """Recursively add directory nodes to the graph"""
+        if 'children' not in node:
+            return
+        
+        for child in node['children']:
+            child_name = child['name']
+            child_id = f"{prefix}_{child_name}" if prefix else child_name
+            
+            # Skip hidden files/directories
+            if child_name.startswith('.'):
+                continue
+            
+            # Skip already added nodes
+            if child_id in added_nodes:
+                continue
+            
+            added_nodes.append(child_id)
+            
+            if child['type'] == 'dir':
+                dot.node(child_id, child_name, fillcolor='lightblue')
+                dot.edge(parent_id, child_id)
+                self._add_directory_nodes(dot, child, child_id, added_nodes, child_id)
+            elif child['type'] == 'file' and child_name.endswith('.py'):
+                dot.node(child_id, child_name, fillcolor='lightgreen')
+                dot.edge(parent_id, child_id)
+    
+    def generate_module_relationships(self) -> str:
+        """Generate module relationships diagram"""
+        dot = graphviz.Digraph('module_relationships', comment='Module Relationships')
+        dot.attr('node', shape='box', style='filled', fillcolor='lightblue')
+        
+        # Add module nodes
+        modules = {}
+        for module_path, module_data in self.analysis_data['code'].items():
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            module_id = f"module_{module_name}"
+            dot.node(module_id, module_name)
+            modules[module_path] = module_id
+        
+        # Add edges based on imports
+        for module_path, module_data in self.analysis_data['code'].items():
+            if 'imports' not in module_data:
+                continue
+                
+            source_id = modules[module_path]
+            
+            for imp in module_data['imports']:
+                # Try to find the target module in our analyzed modules
+                for target_path in modules.keys():
+                    target_name = os.path.splitext(os.path.basename(target_path))[0]
+                    if imp['name'] == target_name or imp['name'].endswith(f'.{target_name}'):
+                        target_id = modules[target_path]
+                        dot.edge(source_id, target_id)
+        
+        # Save diagram
+        output_path = os.path.join(self.diagrams_dir, 'module_relationships')
+        dot.render(output_path, format='png', cleanup=True)
+        
+        return os.path.relpath(f'{output_path}.png', self.output_dir)
+    
+    def generate_class_diagrams(self) -> Dict[str, str]:
+        """Generate class diagrams for each module with classes"""
+        class_diagrams = {}
+        
+        for module_path, module_data in self.analysis_data['code'].items():
+            if not module_data.get('classes'):
+                continue
+                
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            
+            dot = graphviz.Digraph(f'class_diagram_{module_name}', 
+                                  comment=f'Class Diagram for {module_name}')
+            dot.attr('node', shape='record', style='filled', fillcolor='lightblue')
+            
+            # Add class nodes
+            for class_info in module_data['classes']:
+                class_name = class_info['name']
+                methods = class_info.get('methods', [])
+                
+                # Create label with class name and methods
+                label = f"{{{class_name}|{self._format_methods_for_diagram(methods)}}}"
+                dot.node(class_name, label)
+                
+                # Add inheritance edges if available
+                if 'bases' in class_info:
+                    for base in class_info['bases']:
+                        # Check if base class is in our diagram
+                        for other_class in module_data['classes']:
+                            if other_class['name'] == base:
+                                dot.edge(base, class_name, arrowhead='empty')
+            
+            # Save diagram
+            output_path = os.path.join(self.diagrams_dir, f'class_diagram_{module_name}')
+            dot.render(output_path, format='png', cleanup=True)
+            
+            class_diagrams[module_name] = os.path.relpath(f'{output_path}.png', self.output_dir)
+        
+        return class_diagrams
+    
+    def _format_methods_for_diagram(self, methods: List[Dict[str, Any]]) -> str:
+        """Format methods for display in class diagram"""
+        if not methods:
+            return ""
+            
+        result = []
+        for method in methods:
+            method_name = method['name']
+            # Skip private methods
+            if method_name.startswith('_') and not method_name.startswith('__'):
+                continue
+                
+            result.append(method_name + '()')
+            
+        return '\\l'.join(result) + '\\l'  # Left-align text
+```
+
+3. Integrate diagram generation with HTML generator:
+```python
+# In HTMLGenerator class
+from nkwiki.generator.diagram_generator import DiagramGenerator
+
+def generate_documentation(self) -> None:
+    """Generate HTML documentation from analysis data"""
+    os.makedirs(self.output_dir, exist_ok=True)
+    
+    # Generate diagrams
+    diagram_generator = DiagramGenerator(self.analysis_data, self.output_dir)
+    diagrams = diagram_generator.generate_all_diagrams()
+    
+    # Add diagrams to analysis data for templates
+    self.analysis_data['diagrams'] = diagrams
+    
+    # Copy static files
+    self._copy_static_files()
+    
+    # Generate pages
+    self._generate_index()
+    self._generate_overview()
+    self._generate_modules_docs()
+```
+
+4. Update HTML templates to include diagrams:
+```html
+<!-- In overview.html template -->
+{% extends "base.html" %}
+{% set in_module = false %}
+
+{% block content %}
+    <!-- Project structure section -->
+    <section>
+        <h2>Project Structure</h2>
+        
+        {% if diagrams and diagrams.structure %}
+            <div class="diagram">
+                <img src="{{ diagrams.structure }}" alt="Project Structure Diagram">
+            </div>
+        {% endif %}
+        
+        <!-- Rest of the overview content -->
+    </section>
+{% endblock %}
+
+<!-- In module.html template -->
+{% if diagrams and diagrams.classes and module_name in diagrams.classes %}
+    <section>
+        <h2>Class Diagram</h2>
+        <div class="diagram">
+            <img src="../{{ diagrams.classes[module_name] }}" alt="Class Diagram for {{ module_name }}">
+        </div>
+    </section>
+{% endif %}
+```
+
+5. Update markdown generator to include diagrams:
+```python
+# In MarkdownGenerator class
+from nkwiki.generator.diagram_generator import DiagramGenerator
+
+def generate_documentation(self) -> None:
+    """Generate markdown documentation from analysis data"""
+    os.makedirs(self.output_dir, exist_ok=True)
+    
+    # Generate diagrams
+    diagram_generator = DiagramGenerator(self.analysis_data, self.output_dir)
+    diagrams = diagram_generator.generate_all_diagrams()
+    
+    # Add diagrams to analysis data
+    self.analysis_data['diagrams'] = diagrams
+    
+    # Generate documentation
+    self._generate_overview()
+    self._generate_modules_docs()
+    self._generate_index()
+
+def _generate_overview(self) -> None:
+    # ... existing code ...
+    
+    # Add diagrams section if available
+    if 'diagrams' in self.analysis_data and self.analysis_data['diagrams'].get('structure'):
+        f.write('## Project Structure Diagram\n\n')
+        f.write(f'![Project Structure Diagram]({self.analysis_data["diagrams"]["structure"]})\n\n')
+    
+    if 'diagrams' in self.analysis_data and self.analysis_data['diagrams'].get('modules'):
+        f.write('## Module Relationships Diagram\n\n')
+        f.write(f'![Module Relationships Diagram]({self.analysis_data["diagrams"]["modules"]})\n\n')
+```
+
+# Test Strategy:
+1. Test diagram generation with sample projects of varying complexity
+2. Verify correct generation of:
+   - Project structure diagrams
+   - Module relationship diagrams
+   - Class diagrams
+3. Test integration with both HTML and Markdown generators
+4. Verify that diagrams are correctly referenced in generated documentation
+5. Test with edge cases like projects with circular dependencies
+6. Verify that diagrams are visually clear and properly formatted
+7. Test with large projects to ensure diagrams remain readable

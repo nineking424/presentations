@@ -1,0 +1,205 @@
+# Task ID: 8
+# Title: Implement Basic HTML Document Generator
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Create a component that generates HTML documentation from the analyzed code structure
+# Details:
+1. Add Jinja2 to requirements.txt
+2. Create HTML templates directory structure:
+```
+nkwiki/
+  ├── generator/
+  │   ├── templates/
+  │   │   ├── base.html
+  │   │   ├── index.html
+  │   │   ├── overview.html
+  │   │   └── module.html
+  │   └── static/
+  │       ├── css/
+  │       │   └── style.css
+  │       └── js/
+  │           └── main.js
+```
+
+3. Create HTML generator module:
+```python
+# nkwiki/generator/html_generator.py
+import os
+import shutil
+from typing import Dict, Any
+from jinja2 import Environment, FileSystemLoader
+
+class HTMLGenerator:
+    def __init__(self, analysis_data: Dict[str, Any], output_dir: str):
+        self.analysis_data = analysis_data
+        self.output_dir = output_dir
+        
+        # Setup Jinja2 environment
+        template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+        self.env = Environment(loader=FileSystemLoader(template_dir))
+    
+    def generate_documentation(self) -> None:
+        """Generate HTML documentation from analysis data"""
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Copy static files
+        self._copy_static_files()
+        
+        # Generate index page
+        self._generate_index()
+        
+        # Generate overview page
+        self._generate_overview()
+        
+        # Generate module pages
+        self._generate_modules_docs()
+    
+    def _copy_static_files(self) -> None:
+        """Copy static files to output directory"""
+        static_src = os.path.join(os.path.dirname(__file__), 'static')
+        static_dest = os.path.join(self.output_dir, 'static')
+        
+        if os.path.exists(static_src):
+            if os.path.exists(static_dest):
+                shutil.rmtree(static_dest)
+            shutil.copytree(static_src, static_dest)
+    
+    def _generate_index(self) -> None:
+        """Generate index page"""
+        template = self.env.get_template('index.html')
+        
+        modules = []
+        for module_path in self.analysis_data['code'].keys():
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            modules.append({
+                'name': module_name,
+                'path': module_path,
+                'url': f'modules/{module_name}.html'
+            })
+        
+        context = {
+            'title': 'Documentation Index',
+            'modules': modules
+        }
+        
+        output = template.render(**context)
+        with open(os.path.join(self.output_dir, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(output)
+    
+    def _generate_overview(self) -> None:
+        """Generate overview page"""
+        template = self.env.get_template('overview.html')
+        
+        context = {
+            'title': 'Project Overview',
+            'project': self.analysis_data['project'],
+            'git': self.analysis_data.get('git')
+        }
+        
+        output = template.render(**context)
+        with open(os.path.join(self.output_dir, 'overview.html'), 'w', encoding='utf-8') as f:
+            f.write(output)
+    
+    def _generate_modules_docs(self) -> None:
+        """Generate documentation for each module"""
+        template = self.env.get_template('module.html')
+        modules_dir = os.path.join(self.output_dir, 'modules')
+        os.makedirs(modules_dir, exist_ok=True)
+        
+        for module_path, module_data in self.analysis_data['code'].items():
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            
+            context = {
+                'title': f'Module: {module_name}',
+                'module_name': module_name,
+                'module_path': module_path,
+                'module_data': module_data
+            }
+            
+            output = template.render(**context)
+            with open(os.path.join(modules_dir, f'{module_name}.html'), 'w', encoding='utf-8') as f:
+                f.write(output)
+```
+
+4. Create base HTML template:
+```html
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - nkwiki Documentation</title>
+    <link rel="stylesheet" href="{{ '../' if in_module else '' }}static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>nkwiki Documentation</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ '../' if in_module else '' }}index.html">Home</a></li>
+                    <li><a href="{{ '../' if in_module else '' }}overview.html">Overview</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <main class="container">
+        <h1>{{ title }}</h1>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>Generated by nkwiki</p>
+        </div>
+    </footer>
+    
+    <script src="{{ '../' if in_module else '' }}static/js/main.js"></script>
+</body>
+</html>
+```
+
+5. Update CLI to support HTML format:
+```python
+# In cli/main.py
+
+# Update in parse_args function
+generate_parser.add_argument('-f', '--format', default='markdown', 
+                            choices=['markdown', 'html'], 
+                            help='Documentation format')
+
+# In generate_command function
+def generate_command(args: argparse.Namespace) -> int:
+    # ... existing code ...
+    
+    # Generate documentation
+    if args.format == 'markdown':
+        from nkwiki.generator.markdown_generator import MarkdownGenerator
+        generator = MarkdownGenerator(analysis_data, output_dir)
+        generator.generate_documentation()
+    elif args.format == 'html':
+        from nkwiki.generator.html_generator import HTMLGenerator
+        generator = HTMLGenerator(analysis_data, output_dir)
+        generator.generate_documentation()
+    
+    print(f"Documentation generated successfully in '{output_dir}'")
+    return 0
+```
+
+# Test Strategy:
+1. Test HTML generation with sample analysis data
+2. Verify correct generation of:
+   - Index page with links to all modules
+   - Overview page with project structure
+   - Module pages with classes and functions
+3. Test with different browsers to ensure compatibility
+4. Verify that syntax highlighting works correctly
+5. Test navigation between pages
+6. Validate HTML output for standards compliance
+7. Test with edge cases like modules with no docstrings, empty classes, etc.
