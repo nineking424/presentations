@@ -1,4 +1,4 @@
-# Cursor IDE를 활용한 개발 TAT 초단축
+![스크린샷 2025-05-14 오전 1 39 25](https://github.com/user-attachments/assets/89ecb3a7-5291-41a1-b55f-cc0a5cbe0010)# Cursor IDE를 활용한 개발 TAT 초단축
 
 ---
 
@@ -197,4 +197,5 @@
 - [위키독스: 파이썬으로 배우는 알고리즘 트레이딩](https://wikidocs.net/book/14473)
 - [인터뷰 코더](https://maily.so/thesync/posts/d5ryll34o1w)
 
-![스크린샷 2025-05-14 오전 1 28 49](https://github.com/user-attachments/assets/76e1f6e3-98e8-44bc-9274-866d33a782cc)
+![Uploading 스크린샷 2025-05-14 오전 1.39.25.png…]()
+
